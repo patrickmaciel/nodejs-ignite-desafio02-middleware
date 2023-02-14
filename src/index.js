@@ -9,20 +9,64 @@ app.use(cors());
 
 const users = [];
 
+function findUserByUsername(headers) {
+  const { username } = headers;
+  return users.find((user) => user.username === username);
+}
+
 function checksExistsUserAccount(request, response, next) {
-  // Complete aqui
+  const user = findUserByUsername(request.headers)
+  if (!user) {
+    return response.status(404).json({ error: 'User not found' });
+  }
+  
+  request.user = user;
+  return next();
 }
 
 function checksCreateTodosUserAvailability(request, response, next) {
-  // Complete aqui
+  const { user } = request;
+  if (user.pro === false && user.todos.length >= 10) {
+    return response.status(403).json({ error: 'Free plan limit reached' });
+  }
+  return next();
 }
 
 function checksTodoExists(request, response, next) {
-  // Complete aqui
+  const user = findUserByUsername(request.headers);
+  if (!user) {
+    return response.status(404).json({ error: 'User not found' });
+  }
+  
+  const { id } = request.params;
+  if (!validate(id)) {
+    return response.status(400).json({ error: 'Invalid todo ID' });
+  }
+  
+  const todo = user.todos.find((todo) => todo.id === id);
+  if (!todo) {
+    return response.status(404).json({ error: 'Todo not found' });
+  }
+
+  request.user = user;
+  request.todo = todo;
+
+  return next();
 }
 
 function findUserById(request, response, next) {
-  // Complete aqui
+  const { id } = request.params;
+  if (!validate(id)) {
+    return response.status(400).json({ error: 'Invalid user ID' });
+  }
+
+  const user = users.find((user) => user.id === id);
+  if (!user) {
+    return response.status(404).json({ error: 'User not found' });
+  }
+
+  request.user = user;
+  return next();
 }
 
 app.post('/users', (request, response) => {
@@ -112,7 +156,7 @@ app.delete('/todos/:id', checksExistsUserAccount, checksTodoExists, (request, re
   const todoIndex = user.todos.indexOf(todo);
 
   if (todoIndex === -1) {
-    return response.status(404).json({ error: 'Todo not found' });
+    return response.status(400).json({ error: 'Todo not found' });
   }
 
   user.todos.splice(todoIndex, 1);
